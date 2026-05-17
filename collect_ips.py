@@ -56,17 +56,17 @@ with open('ip.txt', 'w', encoding='utf-8') as f:
     # 先写IP
     if all_ips:
         f.write("# === Cloudflare IP ===\n")
-        for ip in sorted(all_ips)[:150]:
+        for ip in sorted(all_ips)[:5]:
             f.write(ip + '\n')
     
     # 再写域名
     if all_domains:
         f.write("\n# === Cloudflare 域名 ===\n")
-        for domain in sorted(all_domains)[:100]:
+        for domain in sorted(all_domains)[:10]:
             f.write(domain + '\n')
 
 total = len(all_ips) + len(all_domains)
 print(f"\n✅ 采集完成！")
 print(f"   IP数量: {len(all_ips)} 个")
 print(f"   域名数量: {len(all_domains)} 个")
-print(f"   已保存到 ip.txt（前150个IP + 前100个域名）")
+print(f"   已保存到 ip.txt（前5个IP + 前10个域名）")
