@@ -1,3 +1,4 @@
+# === Cloudflare IP ===
 104.16.105.166
 104.16.65.1
 104.17.139.37
@@ -38,3 +39,34 @@
 198.41.194.162
 198.41.208.15
 198.41.208.224
+
+# === Cloudflare 域名 ===
+12377.
+agreement.
+baidu.
+batchcheck.
+beian.
+cdninfo.
+check.
+cloudflare.
+common.
+dwztos.
+expand.
+favicon.
+header.
+index.
+jdc-side-panel.
+layer.
+location.
+popper.
+qcloud.
+qiang.
+regym.
+report.
+traceroute.
+uouin.
+urlce.
+urlsec.
+whois.
+window.
+zhanzhang.
