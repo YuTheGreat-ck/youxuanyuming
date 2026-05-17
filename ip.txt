@@ -1,25 +1,22 @@
-# === Cloudflare IPv4 ===
+# === TELECOM TOP 5 ===
 104.16.65.1
 104.16.105.166
 104.17.69.244
+
+# === UNICOM TOP 5 ===
 104.17.139.37
 104.17.142.212
+104.16.200.10
 
-# === Cloudflare IPv6 ===
+# === MOBILE TOP 5 ===
+162.159.210.4
+162.159.211.5
+162.159.208.1
+
+# === IPV6 TOP 5 ===
 2a06:98c1:3120:c39b:f77:4fc1:b18b:c12
-2a06:98c1:3120:c39b:7522:c680:d288:d13c
 2a06:98c1:3121:0:ef18:6ab0:b648:d756
-2a06:98c1:3121:0:efde:82d1:8124:3fed
-2a06:98c1:3121:5d:1caa:56dd:a908:af7b
 
-# === Cloudflare Domain ===
-ad.png
-agreement.html
-all.min.css
-api.uouin.com
-batchcheck.html
-beian.html
-beian.miit.gov.cn
-bootstrap.min.js
-bsb.baidu.com
-cdninfo.js
+# === DOMAIN TOP 10 ===
+cf.090227.xyz
+bestcf.cfcs.us.kg
