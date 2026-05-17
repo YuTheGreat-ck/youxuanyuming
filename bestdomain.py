@@ -65,8 +65,8 @@ if __name__ == "__main__":
     
     # === 为你的域名 myrrs.dpdns.org 配置的子域名 ===
     subdomain_ip_mapping = {
-        'best': 'https://raw.githubusercontent.com/YuTheGreat-ck/youxuanyuming/refs/heads/main/ip.txt',
         'cf': 'https://raw.githubusercontent.com/YuTheGreat-ck/youxuanyuming/refs/heads/main/ip.txt',
+        'best': 'https://raw.githubusercontent.com/YuTheGreat-ck/youxuanyuming/refs/heads/main/ip.txt',
         'github': 'https://raw.githubusercontent.com/YuTheGreat-ck/youxuanyuming/refs/heads/main/ip.txt',   # 推荐用于 GitHub
     }
     
