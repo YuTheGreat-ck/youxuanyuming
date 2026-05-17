@@ -17,9 +17,9 @@ URLS = [
 
 OUTPUT_FILE = "ip.txt"
 
-MAX_IPV4 = 150
-MAX_IPV6 = 50
-MAX_DOMAIN = 100
+MAX_IPV4 = 5
+MAX_IPV6 = 5
+MAX_DOMAIN = 10
 
 
 # ========= Session =========
