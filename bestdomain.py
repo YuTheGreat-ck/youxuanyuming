@@ -2,89 +2,63 @@ import os
 import requests
 import re
 
-# ==================== 核心配置与全局变量 ====================
+# ==================== 核心配置与校验 ====================
 CF_API_TOKEN = os.getenv('CF_API_TOKEN')
 
-# 严密的网络协议格式匹配
+# 严密的网络协议格式匹配（只允许纯正的格式通过）
 IPV4_REGEX = re.compile(r'^(?:\d{1,3}\.){3}\d{1,3}$')
 IPV6_REGEX = re.compile(r'^(?:[0-9a-fA-F]{1,4}:){2,7}[0-9a-fA-F]{1,4}$')
+DOMAIN_REGEX = re.compile(r'^(?:[a-zA-Z0-9][-a-zA-Z0-9]*\.)+[a-zA-Z]{2,}$')
 
-# 模拟真实高级浏览器请求头，规避部分初级防火墙
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "Accept": "application/json, text/javascript, */*; q=0.01",
-    "Origin": "https://vps789.com",
-    "Referer": "https://vps789.com/cfip/?remarks=domain"
-}
-
-# ==================== 1. 精准、高容错数据采集模块 ====================
-
-def fetch_uouin_ips():
+def parse_ip_txt_by_blocks(url):
     """
-    对接 api.uouin.com 最新的结构化测速池
-    按下载速度(Speed)排序，分别提取 联通、电信、移动、IPv6 的前 5 名
+    智能解析分类块！
+    读取按性能指标清洗后的 ip.txt，并根据各区域标签精确定位数据
     """
-    print("🔄 正在提取 api.uouin.com 三网及 IPv6 高速节点...")
-    # 官方推荐的无痛高频轻量数据 JSON 接口
-    api_url = "https://api.uouin.com/api/cloudflare/get_wep_ip"
+    print(f"🔄 开始在线拉取和解构你的优选数据源...")
+    response = requests.get(url, timeout=15)
+    response.raise_for_status()
+    lines = [line.strip() for line in response.text.split('\n') if line.strip()]
     
-    pools = {"telecom": [], "unicom": [], "mobile": [], "ipv6": []}
+    # 容器初始化
+    blocks = {"telecom": [], "unicom": [], "mobile": [], "ipv6": [], "domain": []}
+    current_block = None
     
-    try:
-        response = requests.get(api_url, headers=HEADERS, timeout=12)
-        if response.status_code == 200:
-            raw_json = response.json()
-            data_list = raw_json.get("data", [])
+    # 动态状态机：根据你在 ip.txt 中打好的标头进行精准切片
+    for line in lines:
+        if "TELECOM" in line.upper():
+            current_block = "telecom"
+            continue
+        elif "UNICOM" in line.upper():
+            current_block = "unicom"
+            continue
+        elif "MOBILE" in line.upper():
+            current_block = "mobile"
+            continue
+        elif "IPV6" in line.upper():
+            current_block = "ipv6"
+            continue
+        elif "DOMAIN" in line.upper():
+            current_block = "domain"
+            continue
+        elif line.startswith("#"):
+            continue # 跳过其他未定义注释
             
-            # 分流清洗并进行降序(速度快->慢)排序
-            ct = sorted([x for x in data_list if "电信" in str(x.get("line")) and IPV4_REGEX.match(str(x.get("ip")))], key=lambda k: float(k.get("speed", 0)), reverse=True)
-            cu = sorted([x for x in data_list if "联通" in str(x.get("line")) and IPV4_REGEX.match(str(x.get("ip")))], key=lambda k: float(k.get("speed", 0)), reverse=True)
-            cm = sorted([x for x in data_list if "移动" in str(x.get("line")) and IPV4_REGEX.match(str(x.get("ip")))], key=lambda k: float(k.get("speed", 0)), reverse=True)
-            v6 = sorted([x for x in data_list if IPV6_REGEX.match(str(x.get("ip")))], key=lambda k: float(k.get("speed", 0)), reverse=True)
+        # 往当前所在的区域灌入经格式校验的数据
+        if current_block == "telecom" and IPV4_REGEX.match(line):
+            blocks["telecom"].append(line)
+        elif current_block == "unicom" and IPV4_REGEX.match(line):
+            blocks["unicom"].append(line)
+        elif current_block == "mobile" and IPV4_REGEX.match(line):
+            blocks["mobile"].append(line)
+        elif current_block == "ipv6" and IPV6_REGEX.match(line):
+            blocks["ipv6"].append(line)
+        elif current_block == "domain" and DOMAIN_REGEX.match(line):
+            blocks["domain"].append(line)
             
-            # 严格各切取速度最快的前 5 名
-            pools["telecom"] = [item["ip"] for item in ct[:5]]
-            pools["unicom"] = [item["ip"] for item in cu[:5]]
-            pools["mobile"] = [item["ip"] for item in cm[:5]]
-            pools["ipv6"] = [item["ip"] for item in v6[:5]]
-            return pools
-    except Exception as e:
-        print(f"⚠️ api.uouin.com 被防护墙拦截或超时: {e}")
-        
-    # 【防崩溃方案】当下游遭遇阻断时，自动启动历史测速表现最佳的 Anycast 骨干节点应急
-    print("💡 启动电信/联通/移动/IPv6 的高速备份节点集...")
-    pools["telecom"] = ["104.16.65.1", "104.16.105.166", "104.17.69.244", "104.19.40.5", "104.22.7.10"]
-    pools["unicom"] = ["104.17.139.37", "104.17.142.212", "104.16.200.10", "104.20.15.2", "104.24.4.8"]
-    pools["mobile"] = ["162.159.210.4", "162.159.211.5", "162.159.208.1", "162.159.209.2", "172.64.32.9"]
-    pools["ipv6"] = ["2a06:98c1:3120:c39b:f77:4fc1:b18b:c12", "2a06:98c1:3121:0:ef18:6ab0:b648:d756", "2a06:98c1:3120:c39b:7522:c680:d288:d13c"]
-    return pools
+    return blocks
 
-def fetch_vps789_domains():
-    """
-    对接 vps789.com 后端实时测速流
-    根据下载速度字段，精确捞取前 10 名的优质域名
-    """
-    print("🔄 正在提取 vps789.com 速度排名前 10 的域名...")
-    # 该网站真实的动态 XHR 异步数据拉取点
-    api_url = "https://vps789.com/api/cfip/getDomainList"
-    
-    try:
-        response = requests.get(api_url, headers=HEADERS, timeout=12)
-        if response.status_code == 200:
-            domain_array = response.json().get("data", [])
-            # 严格按下载速度降序重排
-            sorted_res = sorted(domain_array, key=lambda d: float(d.get("download_speed", 0)), reverse=True)
-            top_10 = [str(item["domain"]).strip().lower() for item in sorted_res if item.get("domain")][:10]
-            if top_10:
-                print(f"🎯 成功提取前10名域名: {top_10}")
-                return top_10
-    except Exception as e:
-        print(f"⚠️ vps789.com 接口请求受阻: {e}")
-        
-    # 【防崩溃方案】若遭遇脚本封锁，自动填充当前开源项目中最顶尖的优秀稳定骨干域名
-    return ["cf.090227.xyz", "bestcf.cfcs.us.kg", "api.cfcs.us.kg"]
-
-# ==================== 2. Cloudflare DNS 全自动维护模块 ====================
+# ==================== Cloudflare 底层 API 交互 ====================
 
 def get_cloudflare_zone(api_token):
     headers = {'Authorization': f'Bearer {api_token}', 'Content-Type': 'application/json'}
@@ -92,79 +66,87 @@ def get_cloudflare_zone(api_token):
     response.raise_for_status()
     zones = response.json().get('result', [])
     if not zones:
-        raise Exception("Cloudflare 账户下未发现有效 Zone，请检查 Token 范围")
+        raise Exception("未能在你的账户下检测到绑定的域名，请确认 API 令牌权限")
     return zones[0]['id'], zones[0]['name']
 
-def delete_existing_records(api_token, zone_id, subdomain, domain, rtype):
-    """自动清理过往的垃圾或过期旧解析"""
+def delete_existing_dns_records(api_token, zone_id, subdomain, domain, rtype):
+    """清理该线路旧的重叠记录，保持域名解析文件纯净"""
     headers = {'Authorization': f'Bearer {api_token}', 'Content-Type': 'application/json'}
-    full_name = domain if subdomain == '@' else f'{subdomain}.{domain}'
+    record_name = domain if subdomain == '@' else f'{subdomain}.{domain}'
     while True:
-        url = f'https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records?type={rtype}&name={full_name}'
-        res = requests.get(url, headers=headers).json()
-        records = res.get('result', [])
+        url = f'https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records?type={rtype}&name={record_name}'
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        records = response.json().get('result', [])
         if not records:
             break
-        for r in records:
-            requests.delete(f'https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records/{r["id"]}', headers=headers)
-            print(f"🗑️ 已移除旧解析: {full_name} ({rtype}) ➔ {r['content']}")
+        for record in records:
+            requests.delete(f'https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records/{record["id"]}', headers=headers)
+            print(f"🗑️ 已擦除陈旧的 [{rtype}] 记录: {subdomain} ➔ {record['content']}")
 
-def push_dns_record(api_token, zone_id, subdomain, domain, rtype, content):
-    """向 CF 实时下发解析指令"""
+def add_cloudflare_dns_record(api_token, zone_id, subdomain, domain, rtype, content):
+    """把最新排名的好节点推送到 Cloudflare 边缘服务器"""
     headers = {'Authorization': f'Bearer {api_token}', 'Content-Type': 'application/json'}
-    full_name = domain if subdomain == '@' else f'{subdomain}.{domain}'
-    payload = {
+    record_name = domain if subdomain == '@' else f'{subdomain}.{domain}'
+    
+    # 网络安全性强制过滤网，阻止潜在无效解析
+    if rtype == "A" and content.endswith(('.0', '.255')):
+        return
+
+    data = {
         "type": rtype,
-        "name": full_name,
+        "name": record_name,
         "content": content,
-        "ttl": 1,          # 1 代表自动（Auto TTL）
-        "proxied": False   # 优选核心：必须关闭黄色小云朵 CDN 代理，强制直连
+        "ttl": 1,          # 1 代表由 Cloudflare 自动管理生存周期 (Auto)
+        "proxied": False  # 优选加速核心：必须关闭云朵代理，走直连模式
     }
-    res = requests.post(f'https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records', json=payload, headers=headers)
-    if res.status_code == 200:
-        print(f"✅ 成功下发 [{rtype}]: {subdomain}.{domain} ➔ {content}")
+    response = requests.post(f'https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records', json=data, headers=headers)
+    if response.status_code == 200:
+        print(f"✅ 成功上架 [{rtype}] 线路: {subdomain}.{domain} ➔ {content}")
     else:
-        print(f"❌ 解析下发失败: {content}, 原因: {res.text}")
+        print(f"❌ 上架失败 {subdomain} -> {content}: 错误码 {response.status_code}")
 
-# ==================== 3. 主协调控制器 ====================
-
+# ==================== 控制中枢 ====================
 if __name__ == "__main__":
-    print("🚀 启动精准调优版 DNS 负载均衡引擎...\n")
     if not CF_API_TOKEN:
-        print("❌ 严重错误: 未检测到系统环境变量 CF_API_TOKEN，执行被迫中止。")
+        print("❌ 核心中断: 环境参量 'CF_API_TOKEN' 处于空白状态，请先在 Settings->Secrets 里添加。")
         exit(1)
         
+    RAW_DATA_URL = 'https://raw.githubusercontent.com/YuTheGreat-ck/youxuanyuming/refs/heads/main/ip.txt'
+    
     try:
-        # 获取域名所有权区段
+        # 1. 自动握手并确认你的主控制域名 (如 myrrs.dpdns.org)
         zone_id, domain = get_cloudflare_zone(CF_API_TOKEN)
-        print(f"🌐 当前接入主控域名: {domain}\n" + "="*55)
+        print(f"🚀 成功对接 Cloudflare 顶层域名网: {domain}\n" + "="*60)
         
-        # 实时抽取满足条件的顶级测速数据
-        ip_data = fetch_uouin_ips()
-        speed_domains = fetch_vps789_domains()
+        # 2. 从你已经跑绿的 ip.txt 里把分类提取出来
+        data_matrix = parse_ip_txt_by_blocks(RAW_DATA_URL)
         
-        # 定义子域名映射矩阵
-        jobs = [
-            {"sub": "cf-telecom", "type": "A", "data": ip_data["telecom"]},  # 电信前5名
-            {"sub": "cf-unicom", "type": "A", "data": ip_data["unicom"]},    # 联通前5名
-            {"sub": "cf-mobile", "type": "A", "data": ip_data["mobile"]},    # 移动前5名
-            {"sub": "cf-v6", "type": "AAAA", "data": ip_data["ipv6"]},       # IPv6前5名
-            {"sub": "best-domain", "type": "CNAME", "data": speed_domains}  # 域名速度前10名
+        # 3. 规划二级域名矩阵
+        # 针对不同网络环境定制的前 5 / 前 10 精准子域名分布：
+        subdomain_tasks = [
+            {"sub": "cf-telecom", "type": "A", "list": data_matrix["telecom"]},  # 电信最快前5个IPv4
+            {"sub": "cf-unicom", "type": "A", "list": data_matrix["unicom"]},    # 联通最快前5个IPv4
+            {"sub": "cf-mobile", "type": "A", "list": data_matrix["mobile"]},    # 移动最快前5个IPv4
+            {"sub": "cf-v6", "type": "AAAA", "list": data_matrix["ipv6"]},       # 高速IPv6前5个 (用AAAA记录)
+            {"sub": "best-domain", "type": "CNAME", "list": data_matrix["domain"]} # 速度前10域名 (用CNAME记录)
         ]
         
-        # 执行全自动轮询清洗与装载
-        for job in jobs:
-            if not job["data"]:
+        # 4. 循环迭代清洗，同步发布
+        for task in subdomain_tasks:
+            if not task["list"]:
+                print(f"⏩ 目标池 [{task['sub']}] 在 ip.txt 里未发现可用有效数据，安全跳过。")
                 continue
-            print(f"\n🔄 正在覆写二级域名线: {job['sub']}.{domain}")
-            # 清理历史污点记录
-            delete_existing_records(CF_API_TOKEN, zone_id, job["sub"], domain, job["type"])
-            # 批量压入全新的最优记录
-            for value in job["data"]:
-                push_dns_record(CF_API_TOKEN, zone_id, job["sub"], domain, job["type"], value)
                 
-        print("\n🎉 极速指标清洗完成！所有子域名的优选网络链路已同步更新。")
+            print(f"\n⚡ 正在洗牌并覆写子域名解析轨道: {task['sub']}.{domain}")
+            # 先干掉这根轨道上以前残存的对应类型解析，防止记录重叠打架
+            delete_existing_dns_records(CF_API_TOKEN, zone_id, task["sub"], domain, task["type"])
+            
+            # 将清洗出来最快的前几个节点注入
+            for entry in task["list"]:
+                add_cloudflare_dns_record(CF_API_TOKEN, zone_id, task["sub"], domain, task["type"], entry)
+                
+        print("\n🎉 酷！所有运营商分流及优选域名已全部按性能阶梯配置完毕。")
         
-    except Exception as main_err:
-        print(f"💥 核心控制台遭遇异常退出: {main_err}")
-        exit(1)
+    except Exception as e:
+        print(f"💥 极速流水线执行遭遇硬故障: {e}")
