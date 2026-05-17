@@ -1,18 +1,25 @@
-# === Cloudflare IP ===
-104.16.105.166
+# === Cloudflare IPv4 ===
 104.16.65.1
+104.16.105.166
+104.17.69.244
 104.17.139.37
 104.17.142.212
-104.17.162.3
 
-# === Cloudflare 域名 ===
-12377.
-agreement.
-baidu.
-batchcheck.
-beian.
-cdninfo.
-check.
-cloudflare.
-common.
-dwztos.
+# === Cloudflare IPv6 ===
+2a06:98c1:3120:c39b:f77:4fc1:b18b:c12
+2a06:98c1:3120:c39b:7522:c680:d288:d13c
+2a06:98c1:3121:0:ef18:6ab0:b648:d756
+2a06:98c1:3121:0:efde:82d1:8124:3fed
+2a06:98c1:3121:5d:1caa:56dd:a908:af7b
+
+# === Cloudflare Domain ===
+ad.png
+agreement.html
+all.min.css
+api.uouin.com
+batchcheck.html
+beian.html
+beian.miit.gov.cn
+bootstrap.min.js
+bsb.baidu.com
+cdninfo.js
