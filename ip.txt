@@ -4,10 +4,15 @@
 104.17.139.37
 104.17.142.212
 104.17.162.3
-104.17.167.134
-104.17.69.244
-104.18.151.172
-104.18.166.129
-104.18.189.153
 
 # === Cloudflare 域名 ===
+12377.
+agreement.
+baidu.
+batchcheck.
+beian.
+cdninfo.
+check.
+cloudflare.
+common.
+dwztos.
