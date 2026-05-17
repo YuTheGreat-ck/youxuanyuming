@@ -1,37 +1,38 @@
-name: Update IP List
+import requests
+import re
+import os
+import time
 
-on:
-  schedule:
-    - cron: '*/40 * * * *'     # 每40分钟自动更新
-  workflow_dispatch:           # 支持手动触发
+headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
 
-jobs:
-  update-ip-list:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
+urls = [
+    "https://ipdb.030101.xyz/api/bestcf.txt",
+    "https://bestcfip.com/",
+    "https://cfip.uu.icu/",
+    "https://raw.githubusercontent.com/XIU2/CloudflareSpeedTest/master/ip.txt",
+    "https://stock.hostmonit.com/CloudFlareYes",
+]
 
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
+if os.path.exists('ip.txt'):
+    os.remove('ip.txt')
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
+all_ips = set()
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install requests
+for url in urls:
+    try:
+        print(f"采集: {url}")
+        r = requests.get(url, headers=headers, timeout=20)
+        if r.status_code == 200:
+            ips = re.findall(r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b', r.text)
+            valid = {ip for ip in ips if not ip.endswith(('.0', '.255'))}
+            all_ips.update(valid)
+            print(f"  有效IP: {len(valid)}")
+        time.sleep(1)
+    except Exception as e:
+        print(f"  {url} 失败")
 
-    - name: Collect Best IPs
-      run: python collect_ips.py
+with open('ip.txt', 'w') as f:
+    for ip in sorted(all_ips)[:180]:
+        f.write(ip + '\n')
 
-    - name: Commit and push ip.txt
-      uses: stefanzweifel/git-auto-commit-action@v5
-      with:
-        commit_message: "chore: update ip.txt with new Cloudflare IPs"
-        file_pattern: ip.txt
+print(f"最终保存 {len(all_ips)} 个IP")
