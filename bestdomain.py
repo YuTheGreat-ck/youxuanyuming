@@ -41,7 +41,10 @@ def update_cloudflare_dns(ip_list, api_token, zone_id, subdomain, domain):
         'Content-Type': 'application/json',
     }
     record_name = domain if subdomain == '@' else f'{subdomain}.{domain}'
-    for ip in ip_list:
+    added_count = 0
+    for ip in ip_list[:150]:   # 限制最多150条记录，避免太多
+        if not ip or ip.endswith(('.0', '.255')):
+            continue
         data = {
             "type": "A",
             "name": record_name,
@@ -51,32 +54,33 @@ def update_cloudflare_dns(ip_list, api_token, zone_id, subdomain, domain):
         }
         response = requests.post(f'https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records', json=data, headers=headers)
         if response.status_code == 200:
-            print(f"Add {subdomain}:{ip}")
+            print(f"Add {subdomain}.{domain} → {ip}")
+            added_count += 1
         else:
-            print(f"Failed to add A record for IP {ip} to subdomain {subdomain}: {response.status_code} {response.text}")
+            print(f"Failed {subdomain} {ip}: {response.status_code}")
+    print(f"子域名 {subdomain} 共添加 {added_count} 条记录")
 
 if __name__ == "__main__":
     api_token = os.getenv('CF_API_TOKEN')
     
-    # 示例URL和子域名对应的IP列表
-        subdomain_ip_mapping = {
-        'best': 'https://raw.githubusercontent.com/YuTheGreat-ck/youxuanyuming/refs/heads/main/ip.txt',     # best.myrrs.dpdns.org
-        'cf': 'https://raw.githubusercontent.com/YuTheGreat-ck/youxuanyuming/refs/heads/main/ip.txt',       # cf.myrrs.dpdns.org
-        'github': 'https://raw.githubusercontent.com/YuTheGreat-ck/youxuanyuming/refs/heads/main/ip.txt',   # github.myrrs.dpdns.org （推荐）
-        # 添加更多子域名和对应的IP列表URL
+    # === 为你的域名 myrrs.dpdns.org 配置的子域名 ===
+    subdomain_ip_mapping = {
+        'best': 'https://raw.githubusercontent.com/YuTheGreat-ck/youxuanyuming/refs/heads/main/ip.txt',
+        'cf': 'https://raw.githubusercontent.com/YuTheGreat-ck/youxuanyuming/refs/heads/main/ip.txt',
+        'github': 'https://raw.githubusercontent.com/YuTheGreat-ck/youxuanyuming/refs/heads/main/ip.txt',   # 推荐用于 GitHub
     }
     
     try:
-        # 获取Cloudflare域区ID和域名
         zone_id, domain = get_cloudflare_zone(api_token)
+        print(f"✅ 当前操作域名: {domain}")
         
         for subdomain, url in subdomain_ip_mapping.items():
-            # 获取IP列表
+            print(f"\n🔄 开始更新: {subdomain}.{domain}")
             ip_list = get_ip_list(url)
-            # 删除现有的DNS记录
             delete_existing_dns_records(api_token, zone_id, subdomain, domain)
-            # 更新Cloudflare DNS记录
             update_cloudflare_dns(ip_list, api_token, zone_id, subdomain, domain)
             
+        print("\n🎉 所有子域名更新完成！")
+            
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"❌ Error: {e}")
