@@ -2,19 +2,20 @@ name: Update IP List
 
 on:
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '*/40 * * * *'
   workflow_dispatch:
 
 jobs:
   update-ip-list:
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # 关键权限
+      contents: write
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}   # 使用内置 Token
+        token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -26,7 +27,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install requests beautifulsoup4
 
-    - name: Collect IPs
+    - name: Collect Best IPs
       run: python collect_ips.py
 
     - name: Commit ip.txt if changed
